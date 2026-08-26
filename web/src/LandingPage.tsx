@@ -51,9 +51,9 @@ export function LandingPage({ onStart }: LandingPageProps) {
   return (
     <div className="landing-page">
       <header className="landing-nav">
-        <a className="landing-brand" href="#top" aria-label="豆图首页">
+        <a className="landing-brand" href="#top" aria-label="小民拼豆首页">
           <img src={CREATOR_AVATAR_URL} alt="" />
-          <span>豆图</span>
+          <span>小民拼豆</span>
         </a>
 
         <nav aria-label="首页导航">
@@ -76,7 +76,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
               <span className="kicker-beads" aria-hidden="true"><i /><i /><i /></span>
               拼豆图纸设计器
             </span>
-            <h1 id="landing-title">豆图</h1>
+            <h1 id="landing-title">小民拼豆</h1>
             <p className="landing-tagline">把灵感，一颗颗拼出来。</p>
             <p className="landing-summary">
               从照片到标准色号网格，保留主体、整理色块，再把每一种颜色变成真正可以动手制作的拼豆图纸。
@@ -151,7 +151,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
 
         <section className="landing-final" data-reveal>
           <span>下一张图，从这里开始。</span>
-          <h2>打开画布，做一张属于你的豆图。</h2>
+          <h2>打开画布，做一张属于你的小民拼豆作品。</h2>
           <button className="landing-primary" onClick={onStart}>
             开始设计 <ArrowRight size={18} />
           </button>
@@ -164,7 +164,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
           <span>{CREATOR_NAME}</span>
           <ExternalLink size={13} />
         </a>
-        <span>拼豆图纸设计器</span>
+        <span>小民拼豆图纸设计器</span>
         <span>图片仅在当前浏览器处理</span>
       </footer>
     </div>

@@ -754,11 +754,11 @@ function EditorApp({ onHome }: EditorAppProps) {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <button className="brand brand-button" onClick={onHome} title="返回首页" aria-label="返回豆图首页">
+        <button className="brand brand-button" onClick={onHome} title="返回首页" aria-label="返回小民拼豆首页">
           <span className="brand-mark" aria-hidden="true">
             <i /><i /><i /><i /><i /><i /><i /><i /><i />
           </span>
-          <span className="brand-name">豆图</span>
+          <span className="brand-name">小民拼豆</span>
           <House className="brand-home" size={14} aria-hidden="true" />
         </button>
 

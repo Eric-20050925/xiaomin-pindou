@@ -110,7 +110,7 @@ export function exportPatternPng(
 
   context.fillStyle = '#68736d'
   context.font = '12px system-ui, sans-serif'
-  context.fillText('由拼豆图纸设计器生成 · 屏幕颜色仅供参考', 16, canvas.height - 16)
+  context.fillText('由小民拼豆生成 · 屏幕颜色仅供参考', 16, canvas.height - 16)
 
   canvas.toBlob((blob) => {
     if (blob) downloadBlob(blob, `${title || '未命名图纸'}.png`)
