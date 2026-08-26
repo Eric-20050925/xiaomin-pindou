@@ -81,6 +81,19 @@ export function applyColorStyle(
   style: ColorStyle,
 ) {
   if (style === 'faithful') return source
+  if (style === 'cartoon') {
+    return source.map((lab) => {
+      if (!lab) return null
+      const tone = clamp(50 + (lab[0] - 50) * 1.14, 0, 100)
+      const chroma = Math.hypot(lab[1], lab[2])
+      const chromaScale = chroma > 0 ? Math.min(chroma * 1.22, 100) / chroma : 1
+      return [
+        clamp(Math.round(tone / 12) * 12, 6, 96),
+        Math.round(lab[1] * chromaScale / 8) * 8,
+        Math.round(lab[2] * chromaScale / 8) * 8,
+      ] as LabColor
+    })
+  }
   const detailed = enhancePerceptualDetail(source, width, height)
   const toneContrast = style === 'vivid' ? 1.12 : 1.04
   const chromaScale = style === 'vivid' ? 1.18 : 1.02
@@ -123,7 +136,7 @@ export function selectRepresentativePaletteIndices(
         ...selected.map((selectedIndex) => deltaE2000(palette[index].lab, palette[selectedIndex].lab)),
       )
       const frequencyWeight = Math.sqrt(count / largestCount)
-      const diversityScale = style === 'vivid' ? 6 : style === 'faithful' ? 9 : 12
+      const diversityScale = style === 'vivid' ? 6 : style === 'cartoon' ? 8 : style === 'faithful' ? 9 : 12
       const score = frequencyWeight * (1 + nearestSelectedDistance / diversityScale)
       if (score > bestScore) {
         bestIndex = index
@@ -147,7 +160,7 @@ function coordinatedColorIndex(
 ) {
   if (style === 'faithful') return nearestColorIndexFromLab(lab, palette, selectedIndices)
   const largestCount = Math.max(1, ...counts.values())
-  const cohesionStrength = style === 'harmonized' ? 1.25 : 0.35
+  const cohesionStrength = style === 'cartoon' ? 2.1 : style === 'harmonized' ? 1.25 : 0.35
   let bestIndex = selectedIndices[0] ?? 0
   let bestScore = Number.POSITIVE_INFINITY
 

@@ -75,6 +75,7 @@ const COLOR_STYLE_LABELS: Record<ColorStyle, string> = {
   faithful: '保真还原',
   harmonized: '协调美化',
   vivid: '鲜明强化',
+  cartoon: '卡通风格',
 }
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -936,6 +937,7 @@ function EditorApp({ onHome }: EditorAppProps) {
                 <option value="faithful">保真还原</option>
                 <option value="harmonized">协调美化</option>
                 <option value="vivid">鲜明强化</option>
+                <option value="cartoon">卡通风格</option>
               </select>
             </label>
 

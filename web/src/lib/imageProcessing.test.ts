@@ -149,7 +149,7 @@ describe('detailed color quantization', () => {
     expect(selected).toEqual([0, 2])
   })
 
-  it('offers faithful, harmonized, and vivid interpretations', () => {
+  it('offers faithful, harmonized, vivid, and cartoon interpretations', () => {
     const source: Array<[number, number, number]> = [
       [35, 45, 20],
       [65, 50, 25],
@@ -158,9 +158,12 @@ describe('detailed color quantization', () => {
     expect(applyColorStyle(source, 3, 1, 'faithful')).toEqual(source)
     const harmonized = applyColorStyle(source, 3, 1, 'harmonized')
     const vivid = applyColorStyle(source, 3, 1, 'vivid')
+    const cartoon = applyColorStyle(source, 3, 1, 'cartoon')
     expect(harmonized[1]?.[0]).toBeGreaterThan(source[1][0])
     expect(vivid[1]?.[0]).toBeGreaterThan(harmonized[1]?.[0] ?? 0)
     expect(Math.hypot(vivid[1]?.[1] ?? 0, vivid[1]?.[2] ?? 0))
       .toBeGreaterThan(Math.hypot(harmonized[1]?.[1] ?? 0, harmonized[1]?.[2] ?? 0))
+    expect((cartoon[1]?.[0] ?? 1) % 12).toBe(0)
+    expect((cartoon[1]?.[1] ?? 1) % 8).toBe(0)
   })
 })
