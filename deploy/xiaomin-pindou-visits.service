@@ -1,0 +1,23 @@
+[Unit]
+Description=Xiaomin Pindou daily visitor counter
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Environment=HOST=127.0.0.1
+Environment=PORT=8787
+Environment=VISIT_COUNTER_DATA_FILE=/var/lib/xiaomin-pindou-visits/visits.json
+ExecStart=/usr/bin/node /opt/xiaomin-pindou/visit-counter.mjs
+Restart=on-failure
+RestartSec=3
+StateDirectory=xiaomin-pindou-visits
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/xiaomin-pindou-visits
+
+[Install]
+WantedBy=multi-user.target

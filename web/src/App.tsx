@@ -41,6 +41,7 @@ import './App.css'
 import { LandingPage } from './LandingPage'
 import { GridCanvas } from './components/GridCanvas'
 import { ComparisonDialog } from './components/ComparisonDialog'
+import { DailyVisitorCount } from './components/DailyVisitorCount'
 import { CREATOR_AVATAR_URL, CREATOR_HOME_URL, CREATOR_NAME } from './config/creator'
 import {
   DEFAULT_PALETTE_ID,
@@ -1203,9 +1204,14 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [])
 
-  return screen === 'editor'
-    ? <EditorApp onHome={() => navigate('home')} />
-    : <LandingPage onStart={() => navigate('editor')} />
+  return (
+    <>
+      {screen === 'editor'
+        ? <EditorApp onHome={() => navigate('home')} />
+        : <LandingPage onStart={() => navigate('editor')} />}
+      <DailyVisitorCount screen={screen} />
+    </>
+  )
 }
 
 export default App

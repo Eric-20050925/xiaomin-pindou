@@ -28,6 +28,25 @@ pnpm build
 
 静态文件会生成在 `web/dist`，可以直接部署到 Nginx、Caddy 或静态托管平台。
 
+首页和编辑器右下角会显示按上海自然日统计的今日访问人数。前端仅在浏览器保存随机访客标识，服务端只持久化该标识与日期组合后的 SHA-256 哈希，不记录 IP 或原始标识。同一浏览器在同一天内刷新只计一次。
+
+计数服务使用 Node.js 内置模块，无需额外安装依赖：
+
+```powershell
+node --test server/visit-counter.test.mjs
+node server/visit-counter.mjs
+```
+
+生产环境的 systemd 服务模板位于 `deploy/xiaomin-pindou-visits.service`。Nginx 需要把同源接口转发给本机服务：
+
+```nginx
+location = /api/visits {
+    proxy_pass http://127.0.0.1:8787/visits;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+}
+```
+
 ## 验证
 
 ```powershell
@@ -40,6 +59,8 @@ pnpm build
 ## 项目结构
 
 - `web`：React + TypeScript + Vite 前端
+- `server`：隐私友好的今日独立访客计数服务
+- `deploy`：服务器进程配置模板
 - `palettes`：拼豆色库数据子模块
 - `.venv`：为后续 Python 图像批处理或 API 预留的本地虚拟环境
 
