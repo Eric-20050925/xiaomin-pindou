@@ -25,6 +25,7 @@ export type GridData = {
 
 export type EditorTool = 'pan' | 'paint' | 'fill' | 'replace' | 'pick' | 'erase'
 export type BeadView = 'square' | 'bead' | 'pattern'
+export type ColorStyle = 'faithful' | 'harmonized' | 'vivid'
 
 export type SavedProject = {
   schema: 'pindou-project'

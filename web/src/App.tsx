@@ -69,7 +69,13 @@ import {
 } from './lib/gridDetail'
 import { exportPatternPng, readProject, saveProject } from './lib/project'
 import { extractMainSubject } from './lib/subjectExtraction'
-import type { BeadView, EditorTool, GridData } from './types'
+import type { BeadView, ColorStyle, EditorTool, GridData } from './types'
+
+const COLOR_STYLE_LABELS: Record<ColorStyle, string> = {
+  faithful: '保真还原',
+  harmonized: '协调美化',
+  vivid: '鲜明强化',
+}
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
@@ -172,6 +178,7 @@ function EditorApp({ onHome }: EditorAppProps) {
   const [detailPreset, setDetailPreset] = useState<DetailPreset>('standard')
   const [ratioLocked, setRatioLocked] = useState(true)
   const [maxColors, setMaxColors] = useState(32)
+  const [colorStyle, setColorStyle] = useState<ColorStyle>('harmonized')
   const [subjectEnabled, setSubjectEnabled] = useState(false)
   const [subjectBridgeEnabled, setSubjectBridgeEnabled] = useState(true)
   const [subjectBridgeColor, setSubjectBridgeColor] = useState(() => defaultPaletteIndex('H10'))
@@ -270,6 +277,7 @@ function EditorApp({ onHome }: EditorAppProps) {
         setDetailPreset(saved.detailPreset)
         setRatioLocked(saved.ratioLocked)
         setMaxColors(saved.maxColors)
+        setColorStyle(saved.colorStyle ?? 'harmonized')
         setSubjectEnabled(saved.subjectEnabled)
         setSubjectBridgeEnabled(saved.subjectBridgeEnabled)
         setSubjectBridgeColor(Math.min(saved.subjectBridgeColor, savedPalette.colors.length - 1))
@@ -315,6 +323,7 @@ function EditorApp({ onHome }: EditorAppProps) {
         detailPreset,
         ratioLocked,
         maxColors,
+        colorStyle,
         subjectEnabled,
         subjectBridgeEnabled,
         subjectBridgeColor,
@@ -324,7 +333,7 @@ function EditorApp({ onHome }: EditorAppProps) {
       }).then(() => setStorageStatus('saved')).catch(() => setStorageStatus('error'))
     }, 350)
     return () => window.clearTimeout(timeout)
-  }, [activePaletteId, bridgeBaseGrid, detailPreset, grid, maxColors, ratioLocked, selectedColor, sourceBlob, sourceName, storageReady, subjectBridgeColor, subjectBridgeEnabled, subjectEnabled, targetHeight, targetWidth, title, view, zoom])
+  }, [activePaletteId, bridgeBaseGrid, colorStyle, detailPreset, grid, maxColors, ratioLocked, selectedColor, sourceBlob, sourceName, storageReady, subjectBridgeColor, subjectBridgeEnabled, subjectEnabled, targetHeight, targetWidth, title, view, zoom])
 
   const undo = useCallback(() => {
     if (history.length === 0) return
@@ -456,21 +465,29 @@ function EditorApp({ onHome }: EditorAppProps) {
     return extracted.image
   }, [subjectCache, subjectEnabled])
 
-  const createGridFromImage = useCallback((image: HTMLImageElement, width: number, height: number) => {
+  const createGridFromImage = useCallback((
+    image: HTMLImageElement,
+    width: number,
+    height: number,
+    style = colorStyle,
+    colorLimit = maxColors,
+  ) => {
     const colors = paletteById.get(activePaletteId)?.colors ?? defaultPalette.colors
-    const base = quantizeImage(image, width, height, maxColors, colors)
+    const base = quantizeImage(image, width, height, colorLimit, colors, style)
     return {
       base,
       result: subjectEnabled && subjectBridgeEnabled
         ? connectSubjectRegions(base, subjectBridgeColor)
         : base,
     }
-  }, [activePaletteId, maxColors, subjectBridgeColor, subjectBridgeEnabled, subjectEnabled])
+  }, [activePaletteId, colorStyle, maxColors, subjectBridgeColor, subjectBridgeEnabled, subjectEnabled])
 
   const runConversion = useCallback(async (
     image = sourceImage,
     width = targetWidth,
     height = targetHeight,
+    style = colorStyle,
+    colorLimit = maxColors,
   ) => {
     if (!image) {
       notify('请先选择一张图片')
@@ -493,16 +510,18 @@ function EditorApp({ onHome }: EditorAppProps) {
       setProcessingLabel('正在匹配色号')
       setTargetWidth(dimensions.width)
       setTargetHeight(dimensions.height)
-      const next = createGridFromImage(conversionImage, dimensions.width, dimensions.height)
+      const next = createGridFromImage(conversionImage, dimensions.width, dimensions.height, style, colorLimit)
       replaceGrid(next.result, next.base)
       setTool('pan')
-      notify(subjectEnabled ? '主体已提取并生成图纸' : `已生成 ${dimensions.width} × ${dimensions.height} 图纸`)
+      notify(subjectEnabled
+        ? `主体已提取 · ${COLOR_STYLE_LABELS[style]}`
+        : `已生成 ${dimensions.width} × ${dimensions.height} 图纸 · ${COLOR_STYLE_LABELS[style]}`)
     } catch (error) {
       notify(error instanceof Error ? error.message : '图片转换失败')
     } finally {
       setProcessing(false)
     }
-  }, [createGridFromImage, detailPreset, getImageForConversion, notify, ratioLocked, replaceGrid, sourceImage, sourceUrl, subjectEnabled, targetHeight, targetWidth])
+  }, [colorStyle, createGridFromImage, detailPreset, getImageForConversion, maxColors, notify, ratioLocked, replaceGrid, sourceImage, sourceUrl, subjectEnabled, targetHeight, targetWidth])
 
   const handleImageFile = useCallback(async (file?: File) => {
     if (!file) return
@@ -901,9 +920,46 @@ function EditorApp({ onHome }: EditorAppProps) {
               <small>{detailPreset === 'custom' ? '自定义尺寸' : `长边 ${Math.max(targetWidth, targetHeight)} 格`}</small>
             </div>
 
+            <label className="color-style-control" title="选择系统如何在色准、协调感和视觉冲击之间取舍">
+              <span>配色风格</span>
+              <select
+                aria-label="配色风格"
+                value={colorStyle}
+                onChange={(event) => {
+                  const nextStyle = event.target.value as ColorStyle
+                  setColorStyle(nextStyle)
+                  if (sourceImage && !processing) {
+                    void runConversion(sourceImage, targetWidth, targetHeight, nextStyle, maxColors)
+                  }
+                }}
+              >
+                <option value="faithful">保真还原</option>
+                <option value="harmonized">协调美化</option>
+                <option value="vivid">鲜明强化</option>
+              </select>
+            </label>
+
             <label className="color-limit-control" title="控制自动配色使用的颜色数量；当前会优先保留高光、暗部和明显过渡色">
               <span><strong>{maxColors} 色</strong><small>细腻配色</small></span>
-              <input aria-label="颜色上限" type="range" min="4" max="64" step="1" value={maxColors} onChange={(event) => setMaxColors(Number(event.target.value))} />
+              <input
+                aria-label="颜色上限"
+                type="range"
+                min="4"
+                max="64"
+                step="1"
+                value={maxColors}
+                onChange={(event) => setMaxColors(Number(event.target.value))}
+                onPointerUp={(event) => {
+                  if (sourceImage && !processing) {
+                    void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
+                  }
+                }}
+                onKeyUp={(event) => {
+                  if (sourceImage && !processing) {
+                    void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
+                  }
+                }}
+              />
             </label>
 
             <button className="convert-button" onClick={() => runConversion()} disabled={!sourceImage || processing}>

@@ -1,5 +1,5 @@
 import { deltaE2000, rgbToLab } from './color'
-import type { GridData, LabColor, PaletteColor } from '../types'
+import type { ColorStyle, GridData, LabColor, PaletteColor } from '../types'
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
@@ -74,10 +74,36 @@ export function enhancePerceptualDetail(
   })
 }
 
+export function applyColorStyle(
+  source: Array<LabColor | null>,
+  width: number,
+  height: number,
+  style: ColorStyle,
+) {
+  if (style === 'faithful') return source
+  const detailed = enhancePerceptualDetail(source, width, height)
+  const toneContrast = style === 'vivid' ? 1.12 : 1.04
+  const chromaScale = style === 'vivid' ? 1.18 : 1.02
+  const chromaLimit = style === 'vivid' ? 105 : 86
+
+  return detailed.map((lab) => {
+    if (!lab) return null
+    const chroma = Math.hypot(lab[1], lab[2])
+    const styledChroma = Math.min(chroma * chromaScale, chromaLimit)
+    const scale = chroma > 0 ? styledChroma / chroma : 1
+    return [
+      clamp(50 + (lab[0] - 50) * toneContrast, 0, 100),
+      lab[1] * scale,
+      lab[2] * scale,
+    ] as LabColor
+  })
+}
+
 export function selectRepresentativePaletteIndices(
   counts: Map<number, number>,
   palette: PaletteColor[],
   maximum: number,
+  style: ColorStyle = 'harmonized',
 ) {
   const candidates = [...counts.entries()]
   const limit = Math.max(2, Math.min(maximum, candidates.length))
@@ -97,7 +123,8 @@ export function selectRepresentativePaletteIndices(
         ...selected.map((selectedIndex) => deltaE2000(palette[index].lab, palette[selectedIndex].lab)),
       )
       const frequencyWeight = Math.sqrt(count / largestCount)
-      const score = frequencyWeight * (1 + nearestSelectedDistance / 8)
+      const diversityScale = style === 'vivid' ? 6 : style === 'faithful' ? 9 : 12
+      const score = frequencyWeight * (1 + nearestSelectedDistance / diversityScale)
       if (score > bestScore) {
         bestIndex = index
         bestScore = score
@@ -111,12 +138,37 @@ export function selectRepresentativePaletteIndices(
   return selected
 }
 
+function coordinatedColorIndex(
+  lab: LabColor,
+  palette: PaletteColor[],
+  selectedIndices: number[],
+  counts: Map<number, number>,
+  style: ColorStyle,
+) {
+  if (style === 'faithful') return nearestColorIndexFromLab(lab, palette, selectedIndices)
+  const largestCount = Math.max(1, ...counts.values())
+  const cohesionStrength = style === 'harmonized' ? 1.25 : 0.35
+  let bestIndex = selectedIndices[0] ?? 0
+  let bestScore = Number.POSITIVE_INFINITY
+
+  for (const index of selectedIndices) {
+    const usageWeight = Math.sqrt((counts.get(index) ?? 0) / largestCount)
+    const score = deltaE2000(lab, palette[index].lab) - usageWeight * cohesionStrength
+    if (score < bestScore) {
+      bestIndex = index
+      bestScore = score
+    }
+  }
+  return bestIndex
+}
+
 export function quantizeImage(
   image: HTMLImageElement,
   width: number,
   height: number,
   maxColors: number,
   palette: PaletteColor[],
+  colorStyle: ColorStyle = 'harmonized',
 ): GridData {
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -168,7 +220,7 @@ export function quantizeImage(
     sourceLabs.push(rgbToLab(rgb))
   }
 
-  const detailedLabs = enhancePerceptualDetail(sourceLabs, width, height)
+  const detailedLabs = applyColorStyle(sourceLabs, width, height, colorStyle)
   const initialMatches: number[] = []
   const counts = new Map<number, number>()
   for (const lab of detailedLabs) {
@@ -181,15 +233,15 @@ export function quantizeImage(
     counts.set(match, (counts.get(match) ?? 0) + 1)
   }
 
-  const selectedIndices = selectRepresentativePaletteIndices(counts, palette, maxColors)
+  const selectedIndices = selectRepresentativePaletteIndices(counts, palette, maxColors, colorStyle)
   const selectedSet = new Set(selectedIndices)
 
   const cells = detailedLabs.map((lab, index) => {
     if (!lab) return -1
     const initialMatch = initialMatches[index]
-    return selectedSet.has(initialMatch)
+    return colorStyle === 'faithful' && selectedSet.has(initialMatch)
       ? initialMatch
-      : nearestColorIndexFromLab(lab, palette, selectedIndices)
+      : coordinatedColorIndex(lab, palette, selectedIndices, counts, colorStyle)
   })
 
   return { width, height, cells }

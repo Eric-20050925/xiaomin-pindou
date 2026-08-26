@@ -1,5 +1,5 @@
 import type { DetailPreset } from './gridDetail'
-import type { BeadView, GridData } from '../types'
+import type { BeadView, ColorStyle, GridData } from '../types'
 
 const DATABASE_NAME = 'pindou-local'
 const STORE_NAME = 'workspace'
@@ -20,6 +20,7 @@ export type LocalWorkspace = {
   detailPreset: DetailPreset
   ratioLocked: boolean
   maxColors: number
+  colorStyle?: ColorStyle
   subjectEnabled: boolean
   subjectBridgeEnabled: boolean
   subjectBridgeColor: number
@@ -51,6 +52,7 @@ export const isLocalWorkspace = (value: unknown): value is LocalWorkspace => {
   if (!grid) return false
   const validDetailPresets: DetailPreset[] = ['draft', 'standard', 'fine', 'ultra', 'custom']
   const validViews: BeadView[] = ['square', 'bead', 'pattern']
+  const validColorStyles: ColorStyle[] = ['faithful', 'harmonized', 'vivid']
   const bridgeGrid = workspace.bridgeBaseGrid
   const bridgeGridIsValid = bridgeGrid === undefined
     || bridgeGrid === null
@@ -83,6 +85,7 @@ export const isLocalWorkspace = (value: unknown): value is LocalWorkspace => {
     && Number.isInteger(workspace.maxColors)
     && Number(workspace.maxColors) >= 4
     && Number(workspace.maxColors) <= 64
+    && (workspace.colorStyle === undefined || validColorStyles.includes(workspace.colorStyle as ColorStyle))
     && typeof workspace.subjectEnabled === 'boolean'
     && typeof workspace.subjectBridgeEnabled === 'boolean'
     && Number.isInteger(workspace.subjectBridgeColor)

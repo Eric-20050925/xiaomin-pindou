@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   connectSubjectRegions,
+  applyColorStyle,
   enhancePerceptualDetail,
   remapGridPalette,
   selectRepresentativePaletteIndices,
@@ -146,5 +147,20 @@ describe('detailed color quantization', () => {
       [2, 20],
     ]), palette, 2)
     expect(selected).toEqual([0, 2])
+  })
+
+  it('offers faithful, harmonized, and vivid interpretations', () => {
+    const source: Array<[number, number, number]> = [
+      [35, 45, 20],
+      [65, 50, 25],
+      [35, 45, 20],
+    ]
+    expect(applyColorStyle(source, 3, 1, 'faithful')).toEqual(source)
+    const harmonized = applyColorStyle(source, 3, 1, 'harmonized')
+    const vivid = applyColorStyle(source, 3, 1, 'vivid')
+    expect(harmonized[1]?.[0]).toBeGreaterThan(source[1][0])
+    expect(vivid[1]?.[0]).toBeGreaterThan(harmonized[1]?.[0] ?? 0)
+    expect(Math.hypot(vivid[1]?.[1] ?? 0, vivid[1]?.[2] ?? 0))
+      .toBeGreaterThan(Math.hypot(harmonized[1]?.[1] ?? 0, harmonized[1]?.[2] ?? 0))
   })
 })

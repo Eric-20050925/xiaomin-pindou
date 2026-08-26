@@ -15,6 +15,7 @@ const workspace: LocalWorkspace = {
   detailPreset: 'custom',
   ratioLocked: true,
   maxColors: 24,
+  colorStyle: 'harmonized',
   subjectEnabled: false,
   subjectBridgeEnabled: true,
   subjectBridgeColor: 0,
@@ -35,5 +36,11 @@ describe('local workspace validation', () => {
   it('rejects unsupported view and detail values', () => {
     expect(isLocalWorkspace({ ...workspace, view: 'unknown' })).toBe(false)
     expect(isLocalWorkspace({ ...workspace, detailPreset: 'huge' })).toBe(false)
+  })
+
+  it('accepts older snapshots without a style and rejects unknown styles', () => {
+    const { colorStyle: _colorStyle, ...olderWorkspace } = workspace
+    expect(isLocalWorkspace(olderWorkspace)).toBe(true)
+    expect(isLocalWorkspace({ ...workspace, colorStyle: 'neon' })).toBe(false)
   })
 })
