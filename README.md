@@ -1,0 +1,54 @@
+# 豆图
+
+一个在浏览器中运行的拼豆图纸设计器。当前版本支持将 PNG、JPG 和 WebP 图片转换为多个主流品牌的参考色号网格，并进行主体提取、手工修图、用量统计、工程保存和 PNG 图纸导出。
+
+默认入口是拼豆主题首页，点击“开始设计”后进入 `#editor` 工作台；浏览器前进、后退以及工作台左上角品牌入口都可以在首页与编辑器之间切换。
+
+工作台的“图纸视图”会在每个有色格中显示 MARD 色号，在图纸四边标记 1 起始坐标，并用较粗的暖色辅助线将背景方格按 3 × 3 分组。导出的 PNG 会保留同样的坐标、色号和辅助线，并在底部附上色号用量图例。
+
+上传图片时可以选择“简约、标准、精细、超精细”四档精细度，分别将成品图长边设置为 24、32、48、64 格，并根据图片比例自动计算另一边。宽高仍可手动输入，手动调整后会显示为自定义尺寸。
+
+工作台会使用浏览器 IndexedDB 自动保存当前图纸、色库、转换设置和原始上传图片。再次使用同一个浏览器打开编辑器时，会直接恢复上次编辑内容；数据只保存在当前浏览器，不会上传到服务器。
+
+## 本地运行
+
+```powershell
+git submodule update --init
+cd web
+pnpm install
+pnpm dev
+```
+
+生产构建：
+
+```powershell
+cd web
+pnpm build
+```
+
+静态文件会生成在 `web/dist`，可以直接部署到 Nginx、Caddy 或静态托管平台。
+
+## 验证
+
+```powershell
+cd web
+pnpm lint
+pnpm test
+pnpm build
+```
+
+## 项目结构
+
+- `web`：React + TypeScript + Vite 前端
+- `palettes`：拼豆色库数据子模块
+- `.venv`：为后续 Python 图像批处理或 API 预留的本地虚拟环境
+
+图片量化和颜色匹配全部在浏览器中完成。当前 RGB 数据是屏幕参考值，不等同于实体拼豆的官方测色结果，严谨对色仍应以实物色卡为准。工作台可切换 MARD 221/291、COCO、漫漫、盼盼、咪小窝及 Artkal C/M 系列共 9 套色库；切换时会保留图案形状并将现有颜色映射到目标品牌的近似色。
+
+“提取主体”功能使用 Transformers.js 和 ORMBG 量化模型在浏览器本地运行。首次开启时会下载约 70 MB 的 WASM 运行时与模型资源，后续由浏览器缓存。开启后还可以使用“主体衔接”，选择一个 MARD 背景色填充相邻夹缝并连接所有分离区域；结果按实体拼豆所需的上下左右接触来验证连通，外围背景仍保留为空格。部署到中国大陆网络环境前，建议将模型资源镜像到自己的服务器或 CDN。
+
+## 色库来源
+
+全部色库数据来自 [HansBug/pindou-color-data](https://github.com/HansBug/pindou-color-data)，按其 MIT 数据许可使用。构建产物中的完整声明见 `THIRD_PARTY_NOTICES.txt`。
+
+主体提取使用 Apache 2.0 许可的 [Transformers.js](https://github.com/huggingface/transformers.js) 和 [ORMBG ONNX](https://huggingface.co/onnx-community/ormbg-ONNX)。Apache 2.0 许可文本随构建产物发布。
