@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { panScrollPosition } from '../lib/canvasNavigation'
 import { drawPatternGrid, patternLabelColor, patternLabelFontSize } from '../lib/patternDrawing'
 import type { BeadView, GridData, PaletteColor } from '../types'
 
@@ -16,6 +17,15 @@ export function GridCanvas({ grid, palette, view, zoom, editingEnabled, highligh
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const lastIndexRef = useRef(-1)
+  const panGestureRef = useRef<{
+    pointerId: number
+    pointerX: number
+    pointerY: number
+    scrollLeft: number
+    scrollTop: number
+    scroller: HTMLElement
+  } | null>(null)
+  const [panning, setPanning] = useState(false)
   const patternView = view === 'pattern'
   const baseCellSize = patternView ? 22 : grid.width <= 32 ? 22 : grid.width <= 60 ? 15 : 10
   const cellSize = Math.max(5, Math.round(baseCellSize * zoom / 100))
@@ -117,7 +127,23 @@ export function GridCanvas({ grid, palette, view, zoom, editingEnabled, highligh
   }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!editingEnabled) return
+    if (!editingEnabled) {
+      if (event.button !== 0 || event.pointerType === 'touch') return
+      const scroller = event.currentTarget.closest<HTMLElement>('.canvas-scroller')
+      if (!scroller) return
+      event.preventDefault()
+      panGestureRef.current = {
+        pointerId: event.pointerId,
+        pointerX: event.clientX,
+        pointerY: event.clientY,
+        scrollLeft: scroller.scrollLeft,
+        scrollTop: scroller.scrollTop,
+        scroller,
+      }
+      event.currentTarget.setPointerCapture(event.pointerId)
+      setPanning(true)
+      return
+    }
     event.preventDefault()
     drawingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -127,6 +153,18 @@ export function GridCanvas({ grid, palette, view, zoom, editingEnabled, highligh
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const panGesture = panGestureRef.current
+    if (!editingEnabled && panGesture?.pointerId === event.pointerId) {
+      event.preventDefault()
+      const next = panScrollPosition(
+        { x: panGesture.scrollLeft, y: panGesture.scrollTop },
+        { x: panGesture.pointerX, y: panGesture.pointerY },
+        { x: event.clientX, y: event.clientY },
+      )
+      panGesture.scroller.scrollLeft = next.left
+      panGesture.scroller.scrollTop = next.top
+      return
+    }
     if (!editingEnabled || !drawingRef.current) return
     const index = indexFromPointer(event)
     if (index >= 0 && index !== lastIndexRef.current) {
@@ -135,23 +173,30 @@ export function GridCanvas({ grid, palette, view, zoom, editingEnabled, highligh
     }
   }
 
-  const stopDrawing = () => {
+  const stopPointerAction = (event: React.PointerEvent<HTMLCanvasElement>) => {
     drawingRef.current = false
     lastIndexRef.current = -1
+    if (panGestureRef.current?.pointerId === event.pointerId) {
+      panGestureRef.current = null
+      setPanning(false)
+    }
   }
 
   return (
     <canvas
       ref={canvasRef}
-      className={`pattern-canvas ${editingEnabled ? 'is-editing' : 'is-browsing'}`}
+      className={`pattern-canvas ${editingEnabled ? 'is-editing' : 'is-browsing'} ${panning ? 'is-dragging' : ''}`}
       aria-label={patternView
         ? `${grid.width} 乘 ${grid.height} 带坐标拼豆图纸`
         : `${grid.width} 乘 ${grid.height} 拼豆画布`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={stopDrawing}
-      onPointerCancel={stopDrawing}
-      onPointerLeave={stopDrawing}
+      onPointerUp={stopPointerAction}
+      onPointerCancel={stopPointerAction}
+      onLostPointerCapture={stopPointerAction}
+      onPointerLeave={(event) => {
+        if (editingEnabled) stopPointerAction(event)
+      }}
     />
   )
 }

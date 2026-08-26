@@ -848,6 +848,11 @@
 .pattern-canvas.is-browsing {
   touch-action: pan-x pan-y;
   cursor: grab;
+  user-select: none;
+}
+
+.pattern-canvas.is-browsing.is-dragging {
+  cursor: grabbing;
 }
 
 .processing-overlay {
