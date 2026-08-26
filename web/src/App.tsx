@@ -171,7 +171,7 @@ function EditorApp({ onHome }: EditorAppProps) {
   const [targetHeight, setTargetHeight] = useState(32)
   const [detailPreset, setDetailPreset] = useState<DetailPreset>('standard')
   const [ratioLocked, setRatioLocked] = useState(true)
-  const [maxColors, setMaxColors] = useState(24)
+  const [maxColors, setMaxColors] = useState(32)
   const [subjectEnabled, setSubjectEnabled] = useState(false)
   const [subjectBridgeEnabled, setSubjectBridgeEnabled] = useState(true)
   const [subjectBridgeColor, setSubjectBridgeColor] = useState(() => defaultPaletteIndex('H10'))
@@ -901,8 +901,8 @@ function EditorApp({ onHome }: EditorAppProps) {
               <small>{detailPreset === 'custom' ? '自定义尺寸' : `长边 ${Math.max(targetWidth, targetHeight)} 格`}</small>
             </div>
 
-            <label className="color-limit-control" title="限制自动配色使用的颜色数量">
-              <span><strong>{maxColors} 色</strong><small>颜色上限</small></span>
+            <label className="color-limit-control" title="控制自动配色使用的颜色数量；当前会优先保留高光、暗部和明显过渡色">
+              <span><strong>{maxColors} 色</strong><small>细腻配色</small></span>
               <input aria-label="颜色上限" type="range" min="4" max="64" step="1" value={maxColors} onChange={(event) => setMaxColors(Number(event.target.value))} />
             </label>
 

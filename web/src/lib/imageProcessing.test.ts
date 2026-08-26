@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { connectSubjectRegions, remapGridPalette } from './imageProcessing'
+import {
+  connectSubjectRegions,
+  enhancePerceptualDetail,
+  remapGridPalette,
+  selectRepresentativePaletteIndices,
+} from './imageProcessing'
 import { rgbToLab } from './color'
 import type { GridData, PaletteColor } from '../types'
 
@@ -101,5 +106,45 @@ describe('palette remapping', () => {
     const result = remapGridPalette({ width: 3, height: 1, cells: [0, -1, 1] }, source, target)
 
     expect(result.cells).toEqual([0, -1, 1])
+  })
+})
+
+describe('detailed color quantization', () => {
+  const color = (code: string, rgb: [number, number, number]): PaletteColor => ({
+    code,
+    rgb,
+    hex: '#000000',
+    group: 'A',
+    lab: rgbToLab(rgb),
+  })
+
+  it('keeps flat color areas unchanged', () => {
+    const lab: [number, number, number] = [50, 30, 20]
+    expect(enhancePerceptualDetail([lab, lab, lab], 3, 1)).toEqual([lab, lab, lab])
+  })
+
+  it('strengthens subtle local highlights and shadows', () => {
+    const result = enhancePerceptualDetail([
+      [50, 30, 20],
+      [60, 30, 20],
+      [50, 30, 20],
+    ], 3, 1)
+    expect(result[0]?.[0]).toBeLessThan(50)
+    expect(result[1]?.[0]).toBeGreaterThan(60)
+    expect(result[2]?.[0]).toBeLessThan(50)
+  })
+
+  it('keeps a rarer distinct shade when the color limit is tight', () => {
+    const palette = [
+      color('RED', [220, 20, 20]),
+      color('NEAR_RED', [218, 22, 22]),
+      color('HIGHLIGHT', [255, 150, 120]),
+    ]
+    const selected = selectRepresentativePaletteIndices(new Map([
+      [0, 100],
+      [1, 80],
+      [2, 20],
+    ]), palette, 2)
+    expect(selected).toEqual([0, 2])
   })
 })

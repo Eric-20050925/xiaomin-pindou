@@ -1,12 +1,14 @@
 import { deltaE2000, rgbToLab } from './color'
-import type { GridData, PaletteColor } from '../types'
+import type { GridData, LabColor, PaletteColor } from '../types'
 
-export const nearestColorIndex = (
-  rgb: [number, number, number],
+const clamp = (value: number, minimum: number, maximum: number) =>
+  Math.min(maximum, Math.max(minimum, value))
+
+export const nearestColorIndexFromLab = (
+  lab: LabColor,
   palette: PaletteColor[],
   allowedIndices?: number[],
 ) => {
-  const lab = rgbToLab(rgb)
   const candidates = allowedIndices ?? palette.map((_, index) => index)
   let nearest = candidates[0] ?? 0
   let nearestDistance = Number.POSITIVE_INFINITY
@@ -20,6 +22,93 @@ export const nearestColorIndex = (
   }
 
   return nearest
+}
+
+export const nearestColorIndex = (
+  rgb: [number, number, number],
+  palette: PaletteColor[],
+  allowedIndices?: number[],
+) => {
+  return nearestColorIndexFromLab(rgbToLab(rgb), palette, allowedIndices)
+}
+
+/**
+ * Accentuates real, local color variation before palette matching. Flat areas stay
+ * unchanged while subtle highlights, shadows, and hue changes survive downsampling.
+ */
+export function enhancePerceptualDetail(
+  source: Array<LabColor | null>,
+  width: number,
+  height: number,
+) {
+  return source.map((lab, index) => {
+    if (!lab) return null
+    const x = index % width
+    const y = Math.floor(index / width)
+    const average: LabColor = [0, 0, 0]
+    let samples = 0
+
+    for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+      for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+        const nextX = x + offsetX
+        const nextY = y + offsetY
+        if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) continue
+        const neighbor = source[nextY * width + nextX]
+        if (!neighbor) continue
+        average[0] += neighbor[0]
+        average[1] += neighbor[1]
+        average[2] += neighbor[2]
+        samples += 1
+      }
+    }
+
+    if (samples < 2) return lab
+    average[0] /= samples
+    average[1] /= samples
+    average[2] /= samples
+    return [
+      clamp(lab[0] + clamp((lab[0] - average[0]) * 0.55, -7, 7), 0, 100),
+      lab[1] + clamp((lab[1] - average[1]) * 0.18, -3, 3),
+      lab[2] + clamp((lab[2] - average[2]) * 0.18, -3, 3),
+    ] as LabColor
+  })
+}
+
+export function selectRepresentativePaletteIndices(
+  counts: Map<number, number>,
+  palette: PaletteColor[],
+  maximum: number,
+) {
+  const candidates = [...counts.entries()]
+  const limit = Math.max(2, Math.min(maximum, candidates.length))
+  if (candidates.length <= limit) return candidates.map(([index]) => index)
+
+  candidates.sort((left, right) => right[1] - left[1])
+  const selected = [candidates[0][0]]
+  const selectedSet = new Set(selected)
+  const largestCount = candidates[0][1]
+
+  while (selected.length < limit) {
+    let bestIndex = -1
+    let bestScore = Number.NEGATIVE_INFINITY
+    for (const [index, count] of candidates) {
+      if (selectedSet.has(index)) continue
+      const nearestSelectedDistance = Math.min(
+        ...selected.map((selectedIndex) => deltaE2000(palette[index].lab, palette[selectedIndex].lab)),
+      )
+      const frequencyWeight = Math.sqrt(count / largestCount)
+      const score = frequencyWeight * (1 + nearestSelectedDistance / 8)
+      if (score > bestScore) {
+        bestIndex = index
+        bestScore = score
+      }
+    }
+    if (bestIndex < 0) break
+    selected.push(bestIndex)
+    selectedSet.add(bestIndex)
+  }
+
+  return selected
 }
 
 export function quantizeImage(
@@ -67,35 +156,40 @@ export function quantizeImage(
   )
 
   const pixels = context.getImageData(0, 0, width, height).data
-  const sourceColors: Array<[number, number, number] | null> = []
-  const initialMatches: number[] = []
-  const counts = new Map<number, number>()
+  const sourceLabs: Array<LabColor | null> = []
 
   for (let offset = 0; offset < pixels.length; offset += 4) {
     if (pixels[offset + 3] < 64) {
-      sourceColors.push(null)
-      initialMatches.push(-1)
+      sourceLabs.push(null)
       continue
     }
 
     const rgb: [number, number, number] = [pixels[offset], pixels[offset + 1], pixels[offset + 2]]
-    const match = nearestColorIndex(rgb, palette)
-    sourceColors.push(rgb)
+    sourceLabs.push(rgbToLab(rgb))
+  }
+
+  const detailedLabs = enhancePerceptualDetail(sourceLabs, width, height)
+  const initialMatches: number[] = []
+  const counts = new Map<number, number>()
+  for (const lab of detailedLabs) {
+    if (!lab) {
+      initialMatches.push(-1)
+      continue
+    }
+    const match = nearestColorIndexFromLab(lab, palette)
     initialMatches.push(match)
     counts.set(match, (counts.get(match) ?? 0) + 1)
   }
 
-  const selectedIndices = [...counts.entries()]
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, Math.max(2, Math.min(maxColors, counts.size)))
-    .map(([index]) => index)
+  const selectedIndices = selectRepresentativePaletteIndices(counts, palette, maxColors)
+  const selectedSet = new Set(selectedIndices)
 
-  const cells = sourceColors.map((rgb, index) => {
-    if (!rgb) return -1
+  const cells = detailedLabs.map((lab, index) => {
+    if (!lab) return -1
     const initialMatch = initialMatches[index]
-    return selectedIndices.includes(initialMatch)
+    return selectedSet.has(initialMatch)
       ? initialMatch
-      : nearestColorIndex(rgb, palette, selectedIndices)
+      : nearestColorIndexFromLab(lab, palette, selectedIndices)
   })
 
   return { width, height, cells }
