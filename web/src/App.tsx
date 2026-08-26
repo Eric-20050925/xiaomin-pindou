@@ -14,6 +14,7 @@ import {
   FolderOpen,
   Grid2X2,
   Hash,
+  Hand,
   House,
   ImagePlus,
   Link,
@@ -162,7 +163,7 @@ function EditorApp({ onHome }: EditorAppProps) {
   const paletteGroups = activePalette.groups
   const [history, setHistory] = useState<EditorSnapshot[]>([])
   const [future, setFuture] = useState<EditorSnapshot[]>([])
-  const [tool, setTool] = useState<EditorTool>('paint')
+  const [tool, setTool] = useState<EditorTool>('pan')
   const [selectedColor, setSelectedColor] = useState(() => defaultPaletteIndex('F12'))
   const [view, setView] = useState<BeadView>('pattern')
   const [zoom, setZoom] = useState(100)
@@ -494,6 +495,7 @@ function EditorApp({ onHome }: EditorAppProps) {
       setTargetHeight(dimensions.height)
       const next = createGridFromImage(conversionImage, dimensions.width, dimensions.height)
       replaceGrid(next.result, next.base)
+      setTool('pan')
       notify(subjectEnabled ? '主体已提取并生成图纸' : `已生成 ${dimensions.width} × ${dimensions.height} 图纸`)
     } catch (error) {
       notify(error instanceof Error ? error.message : '图片转换失败')
@@ -540,7 +542,8 @@ function EditorApp({ onHome }: EditorAppProps) {
       setProcessingLabel('正在匹配色号')
       const next = createGridFromImage(conversionImage, dimensions.width, dimensions.height)
       replaceGrid(next.result, next.base)
-      notify(subjectEnabled ? '主体已提取，点击画布可以继续修图' : '图片已转换，点击画布可以继续修图')
+      setTool('pan')
+      notify(subjectEnabled ? '主体已提取，选择编辑工具可以继续修图' : '图片已转换，选择编辑工具可以继续修图')
     } catch (error) {
       notify(error instanceof Error ? error.message : '图片读取失败')
     } finally {
@@ -549,11 +552,12 @@ function EditorApp({ onHome }: EditorAppProps) {
   }, [createGridFromImage, detailPreset, getImageForConversion, notify, ratioLocked, replaceGrid, subjectEnabled, targetHeight, targetWidth])
 
   const handleCellAction = useCallback((index: number, isGestureStart: boolean) => {
+    if (tool === 'pan') return
     const currentColor = grid.cells[index]
     if (tool === 'pick') {
       if (currentColor >= 0) {
         setSelectedColor(currentColor)
-        setTool('paint')
+        setTool('pan')
       }
       return
     }
@@ -738,6 +742,7 @@ function EditorApp({ onHome }: EditorAppProps) {
       setSourceBlob(null)
       setSubjectCache(null)
       setSourceName('工程文件')
+      setTool('pan')
       notify('工程已打开')
     } catch (error) {
       notify(error instanceof Error ? error.message : '工程文件读取失败')
@@ -745,6 +750,7 @@ function EditorApp({ onHome }: EditorAppProps) {
   }
 
   const toolButtons: Array<{ id: EditorTool; label: string; title: string; icon: typeof Brush }> = [
+    { id: 'pan', label: '浏览', title: '浏览和拖动画布，不会修改图纸', icon: Hand },
     { id: 'paint', label: '画笔', title: '逐格绘制', icon: Brush },
     { id: 'fill', label: '填充', title: '填充连续同色区域', icon: PaintBucket },
     { id: 'replace', label: '换色', title: '将点击色全部替换为当前颜色', icon: Replace },
@@ -819,7 +825,7 @@ function EditorApp({ onHome }: EditorAppProps) {
             <button
               key={id}
               className={`tool-button ${tool === id ? 'active' : ''}`}
-              onClick={() => setTool(id)}
+              onClick={() => setTool((current) => current === id && id !== 'pan' ? 'pan' : id)}
               title={toolTitle}
               aria-label={label}
               aria-pressed={tool === id}
@@ -1012,6 +1018,7 @@ function EditorApp({ onHome }: EditorAppProps) {
                   palette={palette}
                   view={view}
                   zoom={zoom}
+                  editingEnabled={tool !== 'pan'}
                   highlightedCells={highlightedHealthCells}
                   onCellAction={handleCellAction}
                 />
@@ -1079,7 +1086,7 @@ function EditorApp({ onHome }: EditorAppProps) {
                   <button
                     key={color.code}
                     className={selectedColor === index ? 'selected' : ''}
-                    onClick={() => { setSelectedColor(index); setTool('paint') }}
+                    onClick={() => setSelectedColor(index)}
                     title={`${color.code} · ${color.hex}`}
                     aria-label={`选择 ${color.code}`}
                   >
@@ -1099,7 +1106,7 @@ function EditorApp({ onHome }: EditorAppProps) {
                 {usage.map(([index, count]) => {
                   const color = palette[index]
                   return (
-                    <button key={color.code} onClick={() => { setSelectedColor(index); setTool('paint'); setActiveTab('palette') }}>
+                    <button key={color.code} onClick={() => { setSelectedColor(index); setActiveTab('palette') }}>
                       <span className="usage-swatch" style={{ background: color.hex }} />
                       <strong>{color.code}</strong>
                       <span className="usage-bar"><i style={{ width: `${Math.max(3, count / beadCount * 100)}%`, background: color.hex }} /></span>

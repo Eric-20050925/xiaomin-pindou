@@ -20,11 +20,18 @@ const hexToRgb = (hex: string) => {
   return channels && channels.length >= 3 ? channels : [255, 255, 255]
 }
 
-const labelColor = (hex: string) => {
+export const patternLabelColor = (hex: string) => {
   const rgb = hexToRgb(hex)
-  const luminance = rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114
-  return luminance > 158 ? 'rgba(18, 29, 23, 0.84)' : 'rgba(255, 255, 255, 0.94)'
+  const channels = rgb.map((channel) => {
+    const value = channel / 255
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  })
+  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+  return luminance > 0.179 ? 'rgba(12, 18, 14, 0.92)' : 'rgba(255, 255, 255, 0.96)'
 }
+
+export const patternLabelFontSize = (cellSize: number, code: string) =>
+  Math.max(3.5, Math.min(12, cellSize * 0.4, (cellSize - 3) / (Math.max(2, code.length) * 0.58)))
 
 export function drawPatternGrid(
   context: CanvasRenderingContext2D,
@@ -46,11 +53,12 @@ export function drawPatternGrid(
     const color = colors[colorIndex]
     context.fillStyle = color.hex
     context.fillRect(x, y, cellSize, cellSize)
-    context.fillStyle = labelColor(color.hex)
-    context.font = `700 ${Math.max(8, Math.min(12, cellSize * 0.4))}px ui-monospace, SFMono-Regular, Consolas, monospace`
+    const fontSize = patternLabelFontSize(cellSize, color.code)
+    context.fillStyle = patternLabelColor(color.hex)
+    context.font = `700 ${fontSize}px ui-monospace, SFMono-Regular, Consolas, monospace`
     context.textAlign = 'center'
     context.textBaseline = 'middle'
-    context.fillText(color.code, x + cellSize / 2, y + cellSize / 2, cellSize - 2)
+    context.fillText(color.code, x + cellSize / 2, y + cellSize / 2)
   })
 
   for (let column = 0; column <= grid.width; column += 1) {

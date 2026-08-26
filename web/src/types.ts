@@ -23,7 +23,7 @@ export type GridData = {
   cells: number[]
 }
 
-export type EditorTool = 'paint' | 'fill' | 'replace' | 'pick' | 'erase'
+export type EditorTool = 'pan' | 'paint' | 'fill' | 'replace' | 'pick' | 'erase'
 export type BeadView = 'square' | 'bead' | 'pattern'
 
 export type SavedProject = {

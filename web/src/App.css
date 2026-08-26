@@ -838,8 +838,16 @@
   background: #ffffff;
   border: 1px solid #bdc7bf;
   box-shadow: 0 10px 26px rgba(30, 43, 35, 0.14);
+}
+
+.pattern-canvas.is-editing {
   touch-action: none;
   cursor: crosshair;
+}
+
+.pattern-canvas.is-browsing {
+  touch-action: pan-x pan-y;
+  cursor: grab;
 }
 
 .processing-overlay {
@@ -1756,6 +1764,10 @@
     box-shadow: 0 -4px 18px rgba(30, 42, 35, 0.08);
   }
 
+  .canvas-scroller {
+    overscroll-behavior: auto;
+  }
+
   .tool-rail-spacer {
     display: none;
   }
@@ -1850,13 +1862,13 @@
   }
 
   .tool-rail {
-    gap: 3px;
-    padding-right: 6px;
-    padding-left: 6px;
+    gap: 2px;
+    padding-right: 4px;
+    padding-left: 4px;
   }
 
   .tool-button {
-    width: 44px;
+    width: 40px;
   }
 
   .tool-button span {
@@ -1864,7 +1876,7 @@
   }
 
   .selected-bead {
-    width: 44px;
+    width: 40px;
   }
 
   .comparison-overlay {

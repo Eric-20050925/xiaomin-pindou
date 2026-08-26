@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { drawPatternGrid } from '../lib/patternDrawing'
+import { drawPatternGrid, patternLabelColor, patternLabelFontSize } from '../lib/patternDrawing'
 import type { BeadView, GridData, PaletteColor } from '../types'
 
 type GridCanvasProps = {
@@ -7,16 +7,12 @@ type GridCanvasProps = {
   palette: PaletteColor[]
   view: BeadView
   zoom: number
+  editingEnabled: boolean
   highlightedCells?: number[]
   onCellAction: (index: number, isGestureStart: boolean) => void
 }
 
-const contrastColor = (rgb: [number, number, number]) =>
-  rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114 > 154
-    ? 'rgba(18, 29, 23, 0.82)'
-    : 'rgba(255, 255, 255, 0.9)'
-
-export function GridCanvas({ grid, palette, view, zoom, highlightedCells = [], onCellAction }: GridCanvasProps) {
+export function GridCanvas({ grid, palette, view, zoom, editingEnabled, highlightedCells = [], onCellAction }: GridCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawingRef = useRef(false)
   const lastIndexRef = useRef(-1)
@@ -81,9 +77,10 @@ export function GridCanvas({ grid, palette, view, zoom, highlightedCells = [], o
             }
           }
 
-          if (view === 'square' && cellSize >= 25) {
-            context.fillStyle = contrastColor(color.rgb)
-            context.font = `600 ${Math.max(8, cellSize * 0.32)}px ui-monospace, monospace`
+          if (view === 'square' && cellSize >= 10) {
+            const fontSize = patternLabelFontSize(cellSize, color.code)
+            context.fillStyle = patternLabelColor(color.hex)
+            context.font = `700 ${fontSize}px ui-monospace, monospace`
             context.textAlign = 'center'
             context.textBaseline = 'middle'
             context.fillText(color.code, x + cellSize / 2, y + cellSize / 2)
@@ -120,6 +117,7 @@ export function GridCanvas({ grid, palette, view, zoom, highlightedCells = [], o
   }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!editingEnabled) return
     event.preventDefault()
     drawingRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -129,7 +127,7 @@ export function GridCanvas({ grid, palette, view, zoom, highlightedCells = [], o
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return
+    if (!editingEnabled || !drawingRef.current) return
     const index = indexFromPointer(event)
     if (index >= 0 && index !== lastIndexRef.current) {
       lastIndexRef.current = index
@@ -145,7 +143,7 @@ export function GridCanvas({ grid, palette, view, zoom, highlightedCells = [], o
   return (
     <canvas
       ref={canvasRef}
-      className="pattern-canvas"
+      className={`pattern-canvas ${editingEnabled ? 'is-editing' : 'is-browsing'}`}
       aria-label={patternView
         ? `${grid.width} 乘 ${grid.height} 带坐标拼豆图纸`
         : `${grid.width} 乘 ${grid.height} 拼豆画布`}
