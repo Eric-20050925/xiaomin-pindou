@@ -52,7 +52,9 @@ export const isLocalWorkspace = (value: unknown): value is LocalWorkspace => {
   if (!grid) return false
   const validDetailPresets: DetailPreset[] = ['draft', 'standard', 'fine', 'ultra', 'custom']
   const validViews: BeadView[] = ['square', 'bead', 'pattern']
-  const validColorStyles: ColorStyle[] = ['faithful', 'harmonized', 'vivid', 'cartoon']
+  const validColorStyles: ColorStyle[] = [
+    'faithful', 'harmonized', 'vivid', 'cartoon', 'pastel', 'retro', 'cool', 'monochrome',
+  ]
   const bridgeGrid = workspace.bridgeBaseGrid
   const bridgeGridIsValid = bridgeGrid === undefined
     || bridgeGrid === null

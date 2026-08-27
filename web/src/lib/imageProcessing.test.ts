@@ -149,7 +149,7 @@ describe('detailed color quantization', () => {
     expect(selected).toEqual([0, 2])
   })
 
-  it('offers faithful, harmonized, vivid, and cartoon interpretations', () => {
+  it('offers distinct natural and creative color interpretations', () => {
     const source: Array<[number, number, number]> = [
       [35, 45, 20],
       [65, 50, 25],
@@ -159,11 +159,21 @@ describe('detailed color quantization', () => {
     const harmonized = applyColorStyle(source, 3, 1, 'harmonized')
     const vivid = applyColorStyle(source, 3, 1, 'vivid')
     const cartoon = applyColorStyle(source, 3, 1, 'cartoon')
+    const pastel = applyColorStyle(source, 3, 1, 'pastel')
+    const retro = applyColorStyle(source, 3, 1, 'retro')
+    const cool = applyColorStyle(source, 3, 1, 'cool')
+    const monochrome = applyColorStyle(source, 3, 1, 'monochrome')
     expect(harmonized[1]?.[0]).toBeGreaterThan(source[1][0])
     expect(vivid[1]?.[0]).toBeGreaterThan(harmonized[1]?.[0] ?? 0)
     expect(Math.hypot(vivid[1]?.[1] ?? 0, vivid[1]?.[2] ?? 0))
       .toBeGreaterThan(Math.hypot(harmonized[1]?.[1] ?? 0, harmonized[1]?.[2] ?? 0))
     expect((cartoon[1]?.[0] ?? 1) % 12).toBe(0)
     expect((cartoon[1]?.[1] ?? 1) % 8).toBe(0)
+    expect(Math.hypot(pastel[1]?.[1] ?? 0, pastel[1]?.[2] ?? 0))
+      .toBeLessThan(Math.hypot(harmonized[1]?.[1] ?? 0, harmonized[1]?.[2] ?? 0))
+    expect(retro[1]?.[2]).toBeGreaterThan(source[1][2])
+    expect(cool[1]?.[2]).toBeLessThan(source[1][2])
+    expect(monochrome[1]?.slice(1)).toEqual([0, 0])
+    expect((monochrome[1]?.[0] ?? 1) % 14).toBe(0)
   })
 })

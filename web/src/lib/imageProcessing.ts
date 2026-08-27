@@ -4,6 +4,28 @@ import type { ColorStyle, GridData, LabColor, PaletteColor } from '../types'
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
 
+const STYLE_DIVERSITY: Record<ColorStyle, number> = {
+  faithful: 9,
+  harmonized: 12,
+  vivid: 6,
+  cartoon: 8,
+  pastel: 10,
+  retro: 11,
+  cool: 9,
+  monochrome: 7,
+}
+
+const STYLE_COHESION: Record<ColorStyle, number> = {
+  faithful: 0,
+  harmonized: 1.25,
+  vivid: 0.35,
+  cartoon: 2.1,
+  pastel: 1.55,
+  retro: 1.65,
+  cool: 1,
+  monochrome: 2.25,
+}
+
 export const nearestColorIndexFromLab = (
   lab: LabColor,
   palette: PaletteColor[],
@@ -95,6 +117,39 @@ export function applyColorStyle(
     })
   }
   const detailed = enhancePerceptualDetail(source, width, height)
+
+  if (style === 'pastel') {
+    return detailed.map((lab) => lab && [
+      clamp(16 + lab[0] * 0.82, 10, 96),
+      lab[1] * 0.72,
+      lab[2] * 0.72,
+    ] as LabColor)
+  }
+
+  if (style === 'retro') {
+    return detailed.map((lab) => lab && [
+      clamp(50 + (lab[0] - 50) * 0.9, 6, 94),
+      lab[1] * 0.82 + 3,
+      lab[2] * 0.78 + 8,
+    ] as LabColor)
+  }
+
+  if (style === 'cool') {
+    return detailed.map((lab) => lab && [
+      clamp(52 + (lab[0] - 50) * 1.03, 0, 98),
+      lab[1] * 0.92 - 1.5,
+      lab[2] * 0.92 - 7,
+    ] as LabColor)
+  }
+
+  if (style === 'monochrome') {
+    return detailed.map((lab) => {
+      if (!lab) return null
+      const tone = clamp(50 + (lab[0] - 50) * 1.22, 0, 100)
+      return [clamp(Math.round(tone / 14) * 14, 0, 98), 0, 0] as LabColor
+    })
+  }
+
   const toneContrast = style === 'vivid' ? 1.12 : 1.04
   const chromaScale = style === 'vivid' ? 1.18 : 1.02
   const chromaLimit = style === 'vivid' ? 105 : 86
@@ -136,8 +191,7 @@ export function selectRepresentativePaletteIndices(
         ...selected.map((selectedIndex) => deltaE2000(palette[index].lab, palette[selectedIndex].lab)),
       )
       const frequencyWeight = Math.sqrt(count / largestCount)
-      const diversityScale = style === 'vivid' ? 6 : style === 'cartoon' ? 8 : style === 'faithful' ? 9 : 12
-      const score = frequencyWeight * (1 + nearestSelectedDistance / diversityScale)
+      const score = frequencyWeight * (1 + nearestSelectedDistance / STYLE_DIVERSITY[style])
       if (score > bestScore) {
         bestIndex = index
         bestScore = score
@@ -160,7 +214,7 @@ function coordinatedColorIndex(
 ) {
   if (style === 'faithful') return nearestColorIndexFromLab(lab, palette, selectedIndices)
   const largestCount = Math.max(1, ...counts.values())
-  const cohesionStrength = style === 'cartoon' ? 2.1 : style === 'harmonized' ? 1.25 : 0.35
+  const cohesionStrength = STYLE_COHESION[style]
   let bestIndex = selectedIndices[0] ?? 0
   let bestScore = Number.POSITIVE_INFINITY
 

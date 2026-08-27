@@ -43,4 +43,10 @@ describe('local workspace validation', () => {
     expect(isLocalWorkspace(olderWorkspace)).toBe(true)
     expect(isLocalWorkspace({ ...workspace, colorStyle: 'neon' })).toBe(false)
   })
+
+  it('accepts every supported creative style', () => {
+    for (const colorStyle of ['cartoon', 'pastel', 'retro', 'cool', 'monochrome']) {
+      expect(isLocalWorkspace({ ...workspace, colorStyle })).toBe(true)
+    }
+  })
 })

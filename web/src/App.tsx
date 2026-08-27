@@ -77,6 +77,10 @@ const COLOR_STYLE_LABELS: Record<ColorStyle, string> = {
   harmonized: '协调美化',
   vivid: '鲜明强化',
   cartoon: '卡通风格',
+  pastel: '柔彩马卡龙',
+  retro: '复古暖调',
+  cool: '清冷通透',
+  monochrome: '黑白剪影',
 }
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -987,10 +991,18 @@ function EditorApp({ onHome }: EditorAppProps) {
                     scheduleAutomaticConversion()
                   }}
                 >
-                  <option value="faithful">保真还原</option>
-                  <option value="harmonized">协调美化</option>
-                  <option value="vivid">鲜明强化</option>
-                  <option value="cartoon">卡通风格</option>
+                  <optgroup label="自然还原">
+                    <option value="faithful">保真还原</option>
+                    <option value="harmonized">协调美化</option>
+                  </optgroup>
+                  <optgroup label="创意表现">
+                    <option value="vivid">鲜明强化</option>
+                    <option value="cartoon">卡通风格</option>
+                    <option value="pastel">柔彩马卡龙</option>
+                    <option value="retro">复古暖调</option>
+                    <option value="cool">清冷通透</option>
+                    <option value="monochrome">黑白剪影</option>
+                  </optgroup>
                 </select>
               </label>
 
