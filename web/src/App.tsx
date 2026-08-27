@@ -30,6 +30,7 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Undo2,
   Unlock,
@@ -197,6 +198,7 @@ function EditorApp({ onHome }: EditorAppProps) {
   } | null>(null)
   const [sourceName, setSourceName] = useState('示例图案')
   const [processing, setProcessing] = useState(false)
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'palette' | 'usage' | 'health'>('palette')
   const [selectedHealthIssue, setSelectedHealthIssue] = useState<PatternHealthIssueKind | null>(null)
   const [search, setSearch] = useState('')
@@ -862,7 +864,7 @@ function EditorApp({ onHome }: EditorAppProps) {
         </nav>
 
         <main className="editor-main">
-          <section className="conversion-bar" aria-label="图片转换设置">
+          <section className={`conversion-bar ${mobileSettingsOpen ? 'settings-open' : ''}`} aria-label="图片转换设置">
             <button className="upload-button" onClick={() => imageInputRef.current?.click()} aria-label="选择图片">
               <ImagePlus size={18} />
               <span>
@@ -871,98 +873,120 @@ function EditorApp({ onHome }: EditorAppProps) {
               </span>
             </button>
 
-            <label className={`subject-toggle ${subjectEnabled ? 'active' : ''}`} title="在浏览器中识别并保留主要人物或物品">
-              <input
-                type="checkbox"
-                checked={subjectEnabled}
-                onChange={(event) => {
-                  setSubjectEnabled(event.target.checked)
-                  setSubjectProgress(0)
-                }}
-              />
-              <span className="toggle-track"><i /></span>
-              <span className="toggle-copy">
-                <strong><ScanSearch size={14} /> 提取主体</strong>
-                <small>{subjectEnabled ? '人物与物品' : '首次约 70 MB'}</small>
+            <button
+              className="mobile-settings-toggle"
+              type="button"
+              aria-expanded={mobileSettingsOpen}
+              aria-controls="conversion-settings"
+              onClick={() => setMobileSettingsOpen((open) => !open)}
+            >
+              <SlidersHorizontal size={17} />
+              <span>
+                <strong>生成设置</strong>
+                <small>
+                  {detailPreset === 'custom'
+                    ? `${targetWidth}×${targetHeight}`
+                    : DETAIL_PRESETS.find((preset) => preset.id === detailPreset)?.label}
+                  {' · '}{COLOR_STYLE_LABELS[colorStyle]}
+                </small>
               </span>
-            </label>
+              <ChevronDown size={15} />
+            </button>
 
-            <div className="dimension-control">
-              <label>
-                <span>宽</span>
-                <input type="number" min="8" max="160" value={targetWidth} onChange={(event) => handleWidthChange(Number(event.target.value))} />
+            <div className="conversion-settings" id="conversion-settings">
+              <label className={`subject-toggle ${subjectEnabled ? 'active' : ''}`} title="在浏览器中识别并保留主要人物或物品">
+                <input
+                  type="checkbox"
+                  checked={subjectEnabled}
+                  onChange={(event) => {
+                    setSubjectEnabled(event.target.checked)
+                    setSubjectProgress(0)
+                  }}
+                />
+                <span className="toggle-track"><i /></span>
+                <span className="toggle-copy">
+                  <strong><ScanSearch size={14} /> 提取主体</strong>
+                  <small>{subjectEnabled ? '人物与物品' : '首次约 70 MB'}</small>
+                </span>
               </label>
-              <button className="link-button" onClick={() => setRatioLocked((locked) => !locked)} title={ratioLocked ? '解除宽高比例' : '锁定宽高比例'} aria-label={ratioLocked ? '解除宽高比例' : '锁定宽高比例'}>
-                {ratioLocked ? <Lock size={15} /> : <Unlock size={15} />}
-              </button>
-              <label>
-                <span>高</span>
-                <input type="number" min="8" max="160" value={targetHeight} onChange={(event) => handleHeightChange(Number(event.target.value))} />
-              </label>
-            </div>
 
-            <div className="detail-control">
-              <span className="detail-label">精细度</span>
-              <div className="detail-options" role="radiogroup" aria-label="图纸精细度">
-                {DETAIL_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={detailPreset === preset.id}
-                    className={detailPreset === preset.id ? 'active' : ''}
-                    onClick={() => handleDetailPresetChange(preset.id)}
-                    title={`${preset.label}，长边 ${preset.longestSide} 格`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+              <div className="dimension-control">
+                <label>
+                  <span>宽</span>
+                  <input type="number" min="8" max="160" value={targetWidth} onChange={(event) => handleWidthChange(Number(event.target.value))} />
+                </label>
+                <button className="link-button" onClick={() => setRatioLocked((locked) => !locked)} title={ratioLocked ? '解除宽高比例' : '锁定宽高比例'} aria-label={ratioLocked ? '解除宽高比例' : '锁定宽高比例'}>
+                  {ratioLocked ? <Lock size={15} /> : <Unlock size={15} />}
+                </button>
+                <label>
+                  <span>高</span>
+                  <input type="number" min="8" max="160" value={targetHeight} onChange={(event) => handleHeightChange(Number(event.target.value))} />
+                </label>
               </div>
-              <small>{detailPreset === 'custom' ? '自定义尺寸' : `长边 ${Math.max(targetWidth, targetHeight)} 格`}</small>
+
+              <div className="detail-control">
+                <span className="detail-label">精细度</span>
+                <div className="detail-options" role="radiogroup" aria-label="图纸精细度">
+                  {DETAIL_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={detailPreset === preset.id}
+                      className={detailPreset === preset.id ? 'active' : ''}
+                      onClick={() => handleDetailPresetChange(preset.id)}
+                      title={`${preset.label}，长边 ${preset.longestSide} 格`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <small>{detailPreset === 'custom' ? '自定义尺寸' : `长边 ${Math.max(targetWidth, targetHeight)} 格`}</small>
+              </div>
+
+              <label className="color-style-control" title="选择系统如何在色准、协调感和视觉冲击之间取舍">
+                <span>配色风格</span>
+                <select
+                  aria-label="配色风格"
+                  value={colorStyle}
+                  onChange={(event) => {
+                    const nextStyle = event.target.value as ColorStyle
+                    setColorStyle(nextStyle)
+                    if (sourceImage && !processing) {
+                      void runConversion(sourceImage, targetWidth, targetHeight, nextStyle, maxColors)
+                    }
+                  }}
+                >
+                  <option value="faithful">保真还原</option>
+                  <option value="harmonized">协调美化</option>
+                  <option value="vivid">鲜明强化</option>
+                  <option value="cartoon">卡通风格</option>
+                </select>
+              </label>
+
+              <label className="color-limit-control" title="控制自动配色使用的颜色数量；当前会优先保留高光、暗部和明显过渡色">
+                <span><strong>{maxColors} 色</strong><small>细腻配色</small></span>
+                <input
+                  aria-label="颜色上限"
+                  type="range"
+                  min="4"
+                  max="64"
+                  step="1"
+                  value={maxColors}
+                  onChange={(event) => setMaxColors(Number(event.target.value))}
+                  onPointerUp={(event) => {
+                    if (sourceImage && !processing) {
+                      void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
+                    }
+                  }}
+                  onKeyUp={(event) => {
+                    if (sourceImage && !processing) {
+                      void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
+                    }
+                  }}
+                />
+              </label>
             </div>
-
-            <label className="color-style-control" title="选择系统如何在色准、协调感和视觉冲击之间取舍">
-              <span>配色风格</span>
-              <select
-                aria-label="配色风格"
-                value={colorStyle}
-                onChange={(event) => {
-                  const nextStyle = event.target.value as ColorStyle
-                  setColorStyle(nextStyle)
-                  if (sourceImage && !processing) {
-                    void runConversion(sourceImage, targetWidth, targetHeight, nextStyle, maxColors)
-                  }
-                }}
-              >
-                <option value="faithful">保真还原</option>
-                <option value="harmonized">协调美化</option>
-                <option value="vivid">鲜明强化</option>
-                <option value="cartoon">卡通风格</option>
-              </select>
-            </label>
-
-            <label className="color-limit-control" title="控制自动配色使用的颜色数量；当前会优先保留高光、暗部和明显过渡色">
-              <span><strong>{maxColors} 色</strong><small>细腻配色</small></span>
-              <input
-                aria-label="颜色上限"
-                type="range"
-                min="4"
-                max="64"
-                step="1"
-                value={maxColors}
-                onChange={(event) => setMaxColors(Number(event.target.value))}
-                onPointerUp={(event) => {
-                  if (sourceImage && !processing) {
-                    void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
-                  }
-                }}
-                onKeyUp={(event) => {
-                  if (sourceImage && !processing) {
-                    void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
-                  }
-                }}
-              />
-            </label>
 
             <button className="convert-button" onClick={() => runConversion()} disabled={!sourceImage || processing}>
               <Sparkles size={17} />
