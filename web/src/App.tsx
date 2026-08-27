@@ -210,8 +210,25 @@ function EditorApp({ onHome }: EditorAppProps) {
   const projectInputRef = useRef<HTMLInputElement>(null)
   const canvasScrollerRef = useRef<HTMLDivElement>(null)
   const bridgePickerRef = useRef<HTMLDivElement>(null)
+  const autoGenerateTimerRef = useRef<number | null>(null)
+  const autoGenerateActionRef = useRef<() => void>(() => {})
 
   const notify = useCallback((message: string) => setToast(message), [])
+  const scheduleAutomaticConversion = useCallback(() => {
+    if (autoGenerateTimerRef.current !== null) {
+      window.clearTimeout(autoGenerateTimerRef.current)
+    }
+    autoGenerateTimerRef.current = window.setTimeout(() => {
+      autoGenerateTimerRef.current = null
+      autoGenerateActionRef.current()
+    }, 350)
+  }, [])
+
+  useEffect(() => () => {
+    if (autoGenerateTimerRef.current !== null) {
+      window.clearTimeout(autoGenerateTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -526,6 +543,17 @@ function EditorApp({ onHome }: EditorAppProps) {
     }
   }, [colorStyle, createGridFromImage, detailPreset, getImageForConversion, maxColors, notify, ratioLocked, replaceGrid, sourceImage, sourceUrl, subjectEnabled, targetHeight, targetWidth])
 
+  useEffect(() => {
+    autoGenerateActionRef.current = () => {
+      if (!sourceImage) return
+      if (processing) {
+        scheduleAutomaticConversion()
+        return
+      }
+      void runConversion()
+    }
+  }, [processing, runConversion, scheduleAutomaticConversion, sourceImage])
+
   const handleImageFile = useCallback(async (file?: File) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
@@ -642,6 +670,7 @@ function EditorApp({ onHome }: EditorAppProps) {
         : targetHeight / targetWidth
       setTargetHeight(clamp(Math.round(nextWidth * ratio), 8, 160))
     }
+    scheduleAutomaticConversion()
   }
 
   const handleHeightChange = (value: number) => {
@@ -654,6 +683,7 @@ function EditorApp({ onHome }: EditorAppProps) {
         : targetWidth / targetHeight
       setTargetWidth(clamp(Math.round(nextHeight * ratio), 8, 160))
     }
+    scheduleAutomaticConversion()
   }
 
   const handleDetailPresetChange = (nextPreset: Exclude<DetailPreset, 'custom'>) => {
@@ -668,6 +698,7 @@ function EditorApp({ onHome }: EditorAppProps) {
     setDetailPreset(nextPreset)
     setTargetWidth(dimensions.width)
     setTargetHeight(dimensions.height)
+    scheduleAutomaticConversion()
   }
 
   const handleBridgeEnabledChange = (enabled: boolean) => {
@@ -901,6 +932,7 @@ function EditorApp({ onHome }: EditorAppProps) {
                   onChange={(event) => {
                     setSubjectEnabled(event.target.checked)
                     setSubjectProgress(0)
+                    scheduleAutomaticConversion()
                   }}
                 />
                 <span className="toggle-track"><i /></span>
@@ -952,9 +984,7 @@ function EditorApp({ onHome }: EditorAppProps) {
                   onChange={(event) => {
                     const nextStyle = event.target.value as ColorStyle
                     setColorStyle(nextStyle)
-                    if (sourceImage && !processing) {
-                      void runConversion(sourceImage, targetWidth, targetHeight, nextStyle, maxColors)
-                    }
+                    scheduleAutomaticConversion()
                   }}
                 >
                   <option value="faithful">保真还原</option>
@@ -973,16 +1003,9 @@ function EditorApp({ onHome }: EditorAppProps) {
                   max="64"
                   step="1"
                   value={maxColors}
-                  onChange={(event) => setMaxColors(Number(event.target.value))}
-                  onPointerUp={(event) => {
-                    if (sourceImage && !processing) {
-                      void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
-                    }
-                  }}
-                  onKeyUp={(event) => {
-                    if (sourceImage && !processing) {
-                      void runConversion(sourceImage, targetWidth, targetHeight, colorStyle, Number(event.currentTarget.value))
-                    }
+                  onChange={(event) => {
+                    setMaxColors(Number(event.target.value))
+                    scheduleAutomaticConversion()
                   }}
                 />
               </label>
@@ -990,7 +1013,7 @@ function EditorApp({ onHome }: EditorAppProps) {
 
             <button className="convert-button" onClick={() => runConversion()} disabled={!sourceImage || processing}>
               <Sparkles size={17} />
-              {processing ? '正在生成' : '重新生成'}
+              {processing ? '正在生成' : '立即生成'}
             </button>
           </section>
 
