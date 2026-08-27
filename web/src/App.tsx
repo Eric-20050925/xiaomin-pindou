@@ -44,7 +44,9 @@ import { LandingPage } from './LandingPage'
 import { GridCanvas } from './components/GridCanvas'
 import { ComparisonDialog } from './components/ComparisonDialog'
 import { DailyVisitorCount } from './components/DailyVisitorCount'
+import { StylePreviewDialog, type StylePreviewVariant } from './components/StylePreviewDialog'
 import { CREATOR_AVATAR_URL, CREATOR_HOME_URL, CREATOR_NAME } from './config/creator'
+import { COLOR_STYLES, COLOR_STYLE_LABELS } from './config/colorStyles'
 import {
   DEFAULT_PALETTE_ID,
   colorIndexByCode,
@@ -71,17 +73,6 @@ import {
 import { exportPatternPng, readProject, saveProject } from './lib/project'
 import { extractMainSubject } from './lib/subjectExtraction'
 import type { BeadView, ColorStyle, EditorTool, GridData } from './types'
-
-const COLOR_STYLE_LABELS: Record<ColorStyle, string> = {
-  faithful: '保真还原',
-  harmonized: '协调美化',
-  vivid: '鲜明强化',
-  cartoon: '卡通风格',
-  pastel: '柔彩马卡龙',
-  retro: '复古暖调',
-  cool: '清冷通透',
-  monochrome: '黑白剪影',
-}
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
@@ -190,6 +181,9 @@ function EditorApp({ onHome }: EditorAppProps) {
   const [subjectBridgeColor, setSubjectBridgeColor] = useState(() => defaultPaletteIndex('H10'))
   const [bridgePaletteOpen, setBridgePaletteOpen] = useState(false)
   const [comparisonOpen, setComparisonOpen] = useState(false)
+  const [stylePreviewOpen, setStylePreviewOpen] = useState(false)
+  const [stylePreviewVariants, setStylePreviewVariants] = useState<StylePreviewVariant[]>([])
+  const [stylePreviewProgress, setStylePreviewProgress] = useState(0)
   const [subjectProgress, setSubjectProgress] = useState(0)
   const [processingLabel, setProcessingLabel] = useState('正在匹配色号')
   const [sourceImage, setSourceImage] = useState<HTMLImageElement | null>(null)
@@ -214,6 +208,7 @@ function EditorApp({ onHome }: EditorAppProps) {
   const projectInputRef = useRef<HTMLInputElement>(null)
   const canvasScrollerRef = useRef<HTMLDivElement>(null)
   const bridgePickerRef = useRef<HTMLDivElement>(null)
+  const stylePreviewRunRef = useRef(0)
   const autoGenerateTimerRef = useRef<number | null>(null)
   const autoGenerateActionRef = useRef<() => void>(() => {})
 
@@ -557,6 +552,67 @@ function EditorApp({ onHome }: EditorAppProps) {
       void runConversion()
     }
   }, [processing, runConversion, scheduleAutomaticConversion, sourceImage])
+
+  const closeStylePreview = useCallback(() => {
+    stylePreviewRunRef.current += 1
+    setStylePreviewOpen(false)
+  }, [])
+
+  const openStylePreview = async () => {
+    if (!sourceImage) {
+      notify('请先选择一张图片')
+      return
+    }
+
+    const runId = stylePreviewRunRef.current + 1
+    stylePreviewRunRef.current = runId
+    const currentVariant: StylePreviewVariant = {
+      style: colorStyle,
+      baseGrid: bridgeBaseGrid,
+      grid,
+    }
+    setStylePreviewVariants([currentVariant])
+    setStylePreviewProgress(Math.round(100 / COLOR_STYLES.length))
+    setStylePreviewOpen(true)
+
+    try {
+      const previewImage = await getImageForConversion(sourceImage, sourceUrl)
+      let completed = 1
+      for (const style of COLOR_STYLES) {
+        if (style.id === colorStyle) continue
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
+        if (stylePreviewRunRef.current !== runId) return
+
+        const baseGrid = quantizeImage(
+          previewImage,
+          grid.width,
+          grid.height,
+          maxColors,
+          palette,
+          style.id,
+        )
+        const resultGrid = subjectEnabled && subjectBridgeEnabled
+          ? connectSubjectRegions(baseGrid, subjectBridgeColor)
+          : baseGrid
+        const variant: StylePreviewVariant = { style: style.id, baseGrid, grid: resultGrid }
+        setStylePreviewVariants((items) => [...items, variant])
+        completed += 1
+        setStylePreviewProgress(Math.round(completed / COLOR_STYLES.length * 100))
+      }
+    } catch (error) {
+      if (stylePreviewRunRef.current !== runId) return
+      closeStylePreview()
+      notify(error instanceof Error ? error.message : '无法生成风格预览')
+    }
+  }
+
+  const applyStylePreview = (variant: StylePreviewVariant) => {
+    setColorStyle(variant.style)
+    replaceGrid(variant.grid, variant.baseGrid)
+    setTool('pan')
+    closeStylePreview()
+    notify(`已应用 ${COLOR_STYLE_LABELS[variant.style]}`)
+  }
 
   const handleImageFile = useCallback(async (file?: File) => {
     if (!file) return
@@ -992,16 +1048,14 @@ function EditorApp({ onHome }: EditorAppProps) {
                   }}
                 >
                   <optgroup label="自然还原">
-                    <option value="faithful">保真还原</option>
-                    <option value="harmonized">协调美化</option>
+                    {COLOR_STYLES.filter((style) => style.group === 'natural').map((style) => (
+                      <option value={style.id} key={style.id}>{style.label}</option>
+                    ))}
                   </optgroup>
                   <optgroup label="创意表现">
-                    <option value="vivid">鲜明强化</option>
-                    <option value="cartoon">卡通风格</option>
-                    <option value="pastel">柔彩马卡龙</option>
-                    <option value="retro">复古暖调</option>
-                    <option value="cool">清冷通透</option>
-                    <option value="monochrome">黑白剪影</option>
+                    {COLOR_STYLES.filter((style) => style.group === 'creative').map((style) => (
+                      <option value={style.id} key={style.id}>{style.label}</option>
+                    ))}
                   </optgroup>
                 </select>
               </label>
@@ -1117,6 +1171,15 @@ function EditorApp({ onHome }: EditorAppProps) {
                 <span>{subjectEnabled && subjectCache?.sourceUrl === sourceUrl ? `已提取 · ${sourceName}` : sourceName}</span>
                 <ShieldCheck size={14} aria-label="本机处理" />
               </div>
+              <button
+                type="button"
+                className="compare-button"
+                disabled={!sourceImage || processing}
+                onClick={() => { void openStylePreview() }}
+                title="一次比较全部配色风格"
+              >
+                <PaletteIcon size={15} /> <span>风格预览</span>
+              </button>
               <button
                 type="button"
                 className="compare-button"
@@ -1297,6 +1360,16 @@ function EditorApp({ onHome }: EditorAppProps) {
           palette={palette}
           paletteName={activePalette.title}
           onClose={() => setComparisonOpen(false)}
+        />
+      )}
+      {stylePreviewOpen && (
+        <StylePreviewDialog
+          variants={stylePreviewVariants}
+          palette={palette}
+          activeStyle={colorStyle}
+          progress={stylePreviewProgress}
+          onSelect={applyStylePreview}
+          onClose={closeStylePreview}
         />
       )}
       {toast && <div className="toast" role="status"><Check size={17} /> {toast}</div>}
